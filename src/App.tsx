@@ -1,8 +1,8 @@
 import axios from "axios";
-import React, { useState, useEffect } from "react";
-import 'bootstrap/dist/css/bootstrap.min.css';
+import React, { useEffect, useState } from "react";
+import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
-import Loader from "./components/Loader/Loader.tsx";
+import Loader from "./components/Loader/Loader";
 
 type Message = {
   _id: string;
@@ -12,21 +12,36 @@ type Message = {
 };
 
 const App = () => {
+
   const [messages, setMessages] = useState<Message[]>([]);
-  const [message, setMessage] = useState('');
-  const [author, setAuthor] = useState('')
+  const [message, setMessage] = useState("");
+  const [author, setAuthor] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const fetchData = async (): Promise<void> => {
+  const fetchData = async (
+    datetime?: string
+  ): Promise<void> => {
     try {
-      const response = await axios.get<Message[]>(
-        'http://146.185.154.90:8000/messages'
-      );
-      setMessages([...response.data].reverse());
-    } catch (error) {
-      console.error("Ошибка:", error);
-    }
+      const url = datetime
+        ? `http://146.185.154.90:8000/messages?datetime=${datetime}`
+        : "http://146.185.154.90:8000/messages";
 
+      const response = await axios.get<Message[]>(url);
+
+      const newMessages = [...response.data].reverse();
+
+      if (datetime) {
+        setMessages((prev) => [
+          ...newMessages,
+          ...prev,
+        ]);
+      } else {
+        setMessages(newMessages);
+      }
+
+    } catch (error) {
+      console.error("error:", error);
+    }
   };
 
   useEffect(() => {
@@ -38,20 +53,30 @@ const App = () => {
       setLoading(false);
     };
 
-    getData();
+    void getData();
+  }, []);
+
+  useEffect(() => {
+    if (messages.length === 0) {
+      return;
+    }
 
     const intervalId = setInterval(() => {
-      fetchData();
+      void fetchData(
+        messages[0].datetime
+      );
     }, 3000);
 
     return () => {
       clearInterval(intervalId);
     };
-  }, []);
+
+  }, [messages]);
 
   const handleSubmit = async (
     event: React.SyntheticEvent
   ): Promise<void> => {
+
     event.preventDefault();
 
     if (!author.trim() || !message.trim()) {
@@ -66,104 +91,107 @@ const App = () => {
       data.set("author", author);
       data.set("message", message);
 
-      await axios.post(
-        "http://146.185.154.90:8000/messages",
-        data
-      );
+      await axios.post("http://146.185.154.90:8000/messages", data);
 
       setAuthor("");
       setMessage("");
-
       await fetchData();
 
     } catch (error) {
-      console.error("Ошибка:", error);
-
+      console.error("error:", error);
     } finally {
       setLoading(false);
     }
   };
 
-
   return (
     <div className="container py-5">
       <div className="row justify-content-center">
+
         <div className="col-md-8">
 
           <div className="card shadow-sm mb-4">
+
             <div className="card-body">
 
               <h3 className="mb-4">Send Message</h3>
 
               <form onSubmit={handleSubmit} className="d-flex flex-column gap-3">
-                <label htmlFor={'name'}>Input your Name</label>
-                <input
-                  value={author}
-                  id="name"
-                  type="text"
-                  maxLength={20}
-                  className="form-control"
-                  placeholder="Enter your name"
-                  onChange={(event) =>
-                    setAuthor(event.target.value)
-                  }
-                />
-                <label htmlFor={'text'}>input your Message</label>
-                <textarea
-                  value={message}
-                  id="text"
-                  name={'text'}
-                  maxLength={50}
-                  onChange={(event) =>
-                    setMessage(event.target.value)
-                  }
-                  className="form-control"
-                  placeholder="Enter message..."
-                />
 
-                <button className="btn btn-primary" disabled={
-                  loading ||
-                  !author.trim() ||
-                  !message.trim()
-                }
-                >
+                <div>
+                  <label
+                    htmlFor="name"
+                    className="form-label"
+                  >Input your Name
+                  </label>
+
+                  <input
+                    value={author}
+                    id="name"
+                    type="text"
+                    maxLength={20}
+                    className="form-control"
+                    placeholder="Enter your name"
+                    onChange={(event) =>
+                      setAuthor(event.target.value)
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="text"
+                    className="form-label"
+                  >Input your Message
+                  </label>
+
+                  <textarea
+                    value={message}
+                    id="text"
+                    maxLength={50}
+                    className="form-control"
+                    placeholder="Enter message..."
+                    onChange={(event) =>
+                      setMessage(event.target.value)} />
+                </div>
+
+                <button
+                  className="btn btn-primary"
+                  disabled={
+                    loading ||
+                    !author.trim() ||
+                    !message.trim()}>
                   Send
                 </button>
 
               </form>
-
             </div>
           </div>
-          {loading && <Loader />}
+
+          {loading && <Loader/>}
+
           {messages.map((item) => (
-                <div
-                  key={item._id}
-                  className="card shadow-sm mb-3"
-                >
-                  <div className="card-body">
 
-                    <div className="d-flex justify-content-between align-items-center mb-2">
+            <div key={item._id} className="card shadow-sm mb-3">
+              <div className="card-body">
 
-                      <h5 className="card-title m-0">
-                        {item.author}
-                      </h5>
+                <div className="d-flex justify-content-between align-items-center mb-2">
 
-                      <small className="text-muted">
-                        {new Date(
-                          item.datetime
-                        ).toLocaleString()}
-                      </small>
+                  <h5 className="card-title m-0">{item.author}</h5>
 
-                    </div>
+                  <small className="text-muted">
+                    {new Date(
+                      item.datetime
+                    ).toLocaleString()}
+                  </small>
 
-                    <p className="card-text">
-                      {item.message}
-                    </p>
-
-                  </div>
                 </div>
-              ))
-          }
+
+                <p className="card-text">{item.message}</p>
+
+              </div>
+            </div>
+          ))}
 
         </div>
       </div>
